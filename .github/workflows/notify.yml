@@ -13,6 +13,10 @@ on:
       pr_title:
         required: false
         type: string
+      # YOU MUST ADD THIS SECTION:
+      commit_msg:
+        required: false
+        type: string
 
 jobs:
   notify:
@@ -30,5 +34,5 @@ jobs:
           SLACK_MESSAGE: >-
             ${{ inputs.event_name == 'pull_request' 
                 && format('Review required: {0}', inputs.pr_url) 
-                || format('Status: {0} on {1}', inputs.status, github.ref_name) }}
+                || format('Commit: "{0}"\nStatus: {1} on {2}', inputs.commit_msg, inputs.status, github.ref_name) }}
           SLACK_COLOR: ${{ inputs.status == 'success' && '#36a64f' || '#af111c' }}
