@@ -28,14 +28,14 @@ jobs:
           SLACK_USERNAME: 'Satsavi CI/CD'
           SLACK_TITLE: >-
             ${{ inputs.event_name == 'pull_request' 
-                && format('PR Activity: {0}', inputs.pr_title) 
+                && inputs.pr_title
                 || inputs.event_name == 'push'
-                && format('Commit to {0}', github.repository)
+                && inputs.commit_msg
                 || format('Deployment: {0}', github.repository) }}
           SLACK_MESSAGE: >-
             ${{ inputs.event_name == 'pull_request' 
-                && format('Review required: {0}', inputs.pr_url) 
+                && inputs.pr_url
                 || inputs.event_name == 'push'
-                && inputs.commit_msg
+                && ''
                 || format('Commit: "{0}"\nStatus: {1} on {2}', inputs.commit_msg, inputs.status, github.ref_name) }}
           SLACK_COLOR: ${{ inputs.status == 'success' && '#36a64f' || '#af111c' }}
