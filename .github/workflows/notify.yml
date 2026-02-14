@@ -21,17 +21,17 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      # Push: plain text only, no colored box
+          # Push: plain text with "Commit:" prefix and author name
       - name: Notify Commit
         if: inputs.event_name == 'push'
         run: |
           curl -X POST -H 'Content-Type: application/json' \
-            -d '{"text": "Commit:  '"$COMMIT_MSG"'"}' \
+            -d '{"text": "Commit: '"$COMMIT_MSG"' by '"$ACTOR"'"}' \
             "$WEBHOOK_URL"
         env:
           WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
           COMMIT_MSG: ${{ inputs.commit_msg }}
-
+          ACTOR: ${{ github.actor }}
       # PR: colored box with title and link
       - name: Notify PR
         if: inputs.event_name == 'pull_request'
