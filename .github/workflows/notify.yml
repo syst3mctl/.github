@@ -21,21 +21,37 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Mattermost Notification
+      # Push: plain text only, no colored box
+      - name: Notify Commit
+        if: inputs.event_name == 'push'
+        run: |
+          curl -X POST -H 'Content-Type: application/json' \
+            -d '{"text": "'"$COMMIT_MSG"'"}' \
+            "$WEBHOOK_URL"
+        env:
+          WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
+          COMMIT_MSG: ${{ inputs.commit_msg }}
+
+      # PR: colored box with title and link
+      - name: Notify PR
+        if: inputs.event_name == 'pull_request'
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
           SLACK_USERNAME: 'Satsavi CI/CD'
-          SLACK_TITLE: >-
-            ${{ inputs.event_name == 'pull_request' 
-                && inputs.pr_title
-                || inputs.event_name == 'push'
-                && inputs.commit_msg
-                || format('Deployment: {0}', github.repository) }}
+          SLACK_TITLE: ${{ inputs.pr_title }}
+          SLACK_MESSAGE: ${{ inputs.pr_url }}
+          SLACK_COLOR: '#36a64f'
+
+      # Release: colored box with deployment info
+      - name: Notify Deployment
+        if: inputs.event_name == 'release'
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
+          SLACK_USERNAME: 'Satsavi CI/CD'
+          SLACK_TITLE: 'Deployment: ${{ github.repository }}'
           SLACK_MESSAGE: >-
-            ${{ inputs.event_name == 'pull_request' 
-                && inputs.pr_url
-                || inputs.event_name == 'push'
-                && ''
-                || format('Commit: "{0}"\nStatus: {1} on {2}', inputs.commit_msg, inputs.status, github.ref_name) }}
+            Commit: "${{ inputs.commit_msg }}"
+            Status: ${{ inputs.status }} on ${{ github.ref_name }}
           SLACK_COLOR: ${{ inputs.status == 'success' && '#36a64f' || '#af111c' }}
