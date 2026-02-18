@@ -27,8 +27,8 @@ jobs:
         if: inputs.event_name == 'push'
         run: |
           curl -X POST -H 'Content-Type: application/json' \
-            -d '{"text": "Commit: '"$COMMIT_MSG"' by '"$ACTOR"'\n'"$COMMIT_URL"'"}' \
-            "$WEBHOOK_URL"
+          -d "{\"text\": \"Commit: [${COMMIT_MSG}](${COMMIT_URL}) by ${ACTOR}\"}" \
+          "$WEBHOOK_URL"
         env:
           WEBHOOK_URL: ${{ secrets.MATTERMOST_WEBHOOK_URL }}
           COMMIT_MSG: ${{ inputs.commit_msg }}
