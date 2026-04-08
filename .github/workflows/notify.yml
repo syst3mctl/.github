@@ -16,6 +16,9 @@ on:
       commit_msg:
         required: false
         type: string
+    secrets:
+      MATTERMOST_WEBHOOK_URL:
+        required: true
 
 jobs:
   notify:
