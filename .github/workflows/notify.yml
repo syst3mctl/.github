@@ -27,8 +27,10 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-          # Push: plain text with "Commit:" prefix and author name
       # Push: plain text with commit message, author, and link
       - name: Notify Commit
         if: inputs.event_name == 'push'
@@ -41,7 +43,8 @@ jobs:
           COMMIT_MSG: ${{ inputs.commit_msg }}
           ACTOR: ${{ github.actor }}
           COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
-      # PR: colored box with title and link
+
+      # PR: colored box with title and link (Mattermost)
       - name: Notify PR
         if: inputs.event_name == 'pull_request'
         uses: rtCamp/action-slack-notify@v2
@@ -64,13 +67,28 @@ jobs:
             Commit: "${{ inputs.commit_msg }}"
             Status: ${{ inputs.status }} on ${{ github.ref_name }}
           SLACK_COLOR: ${{ inputs.status == 'success' && '#36a64f' || '#af111c' }}
-      
-      
+
+      # =========================================================================
+      # Spark PR Sync: Extract diff and email to Gmail for automated review
+      # =========================================================================
+      - name: Check SMTP Configuration
+        id: smtp_check
+        if: inputs.event_name == 'pull_request'
+        env:
+          SMTP_USER: ${{ secrets.SMTP_USERNAME }}
+        run: |
+          if [ -n "$SMTP_USER" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout caller repo
-        if: inputs.event_name == 'pull_request' && secrets.SMTP_USERNAME != ''
+        if: inputs.event_name == 'pull_request' && steps.smtp_check.outputs.enabled == 'true'
         uses: actions/checkout@v4
+
       - name: Extract PR diff
-        if: inputs.event_name == 'pull_request' && secrets.SMTP_USERNAME != ''
+        if: inputs.event_name == 'pull_request' && steps.smtp_check.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -79,8 +97,9 @@ jobs:
           elif [ -n "${{ github.event.pull_request.number }}" ]; then
             gh pr diff "${{ github.event.pull_request.number }}" > pr_diff.txt || true
           fi
+
       - name: Send PR Diff to Gmail for Spark
-        if: inputs.event_name == 'pull_request' && secrets.SMTP_USERNAME != '' && hashFiles('pr_diff.txt') != ''
+        if: inputs.event_name == 'pull_request' && steps.smtp_check.outputs.enabled == 'true' && hashFiles('pr_diff.txt') != ''
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
