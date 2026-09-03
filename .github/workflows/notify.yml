@@ -119,4 +119,7 @@ jobs:
             Pull Request: ${{ inputs.pr_url }}
             Title: ${{ inputs.pr_title }}
             Author: ${{ github.actor }}
+
+            
+            ${{ github.event.pull_request.body }}
           attachments: pr_diff.txt
