@@ -27,9 +27,6 @@ on:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
     steps:
       # Push: plain text with commit message, author, and link
       - name: Notify Commit
@@ -86,16 +83,23 @@ jobs:
       - name: Checkout caller repo
         if: inputs.event_name == 'pull_request' && steps.smtp_check.outputs.enabled == 'true'
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Extract PR diff
         if: inputs.event_name == 'pull_request' && steps.smtp_check.outputs.enabled == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -n "${{ inputs.pr_url }}" ]; then
-            gh pr diff "${{ inputs.pr_url }}" > pr_diff.txt || true
-          elif [ -n "${{ github.event.pull_request.number }}" ]; then
-            gh pr diff "${{ github.event.pull_request.number }}" > pr_diff.txt || true
+          # 1. Try gh pr diff if API permission is available
+          if [ -n "${{ inputs.pr_url }}" ] && gh pr diff "${{ inputs.pr_url }}" > pr_diff.txt 2>/dev/null; then
+            echo "Diff generated via gh pr diff"
+          # 2. Fallback to pure git diff against base branch (no pull-requests permission required)
+          else
+            BASE_BRANCH="${{ github.base_ref || 'main' }}"
+            echo "Falling back to git diff against origin/$BASE_BRANCH"
+            git fetch origin "$BASE_BRANCH" --depth=50 || true
+            git diff "origin/$BASE_BRANCH...HEAD" > pr_diff.txt || true
           fi
 
       - name: Send PR Diff to Gmail for Spark
