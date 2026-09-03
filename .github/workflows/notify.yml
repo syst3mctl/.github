@@ -19,6 +19,10 @@ on:
     secrets:
       MATTERMOST_WEBHOOK_URL:
         required: true
+      SMTP_USERNAME:
+        required: false
+      SMTP_PASSWORD:
+        required: false
 
 jobs:
   notify:
@@ -60,3 +64,36 @@ jobs:
             Commit: "${{ inputs.commit_msg }}"
             Status: ${{ inputs.status }} on ${{ github.ref_name }}
           SLACK_COLOR: ${{ inputs.status == 'success' && '#36a64f' || '#af111c' }}
+      
+      
+      - name: Checkout caller repo
+        if: inputs.event_name == 'pull_request' && secrets.SMTP_USERNAME != ''
+        uses: actions/checkout@v4
+      - name: Extract PR diff
+        if: inputs.event_name == 'pull_request' && secrets.SMTP_USERNAME != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ inputs.pr_url }}" ]; then
+            gh pr diff "${{ inputs.pr_url }}" > pr_diff.txt || true
+          elif [ -n "${{ github.event.pull_request.number }}" ]; then
+            gh pr diff "${{ github.event.pull_request.number }}" > pr_diff.txt || true
+          fi
+      - name: Send PR Diff to Gmail for Spark
+        if: inputs.event_name == 'pull_request' && secrets.SMTP_USERNAME != '' && hashFiles('pr_diff.txt') != ''
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "[PR-Review] ${{ github.repository }}: ${{ inputs.pr_title }}"
+          to: ${{ secrets.SMTP_USERNAME }}
+          from: "GitHub CI <${{ secrets.SMTP_USERNAME }}>"
+          body: |
+            Repository: ${{ github.repository }}
+            Pull Request: ${{ inputs.pr_url }}
+            Title: ${{ inputs.pr_title }}
+            Author: ${{ github.actor }}
+          attachments: pr_diff.txt
